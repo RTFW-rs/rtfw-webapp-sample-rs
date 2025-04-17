@@ -8,6 +8,9 @@
         <header>
             <h1>📋 RTFW-WebApp-Sample | Paste</h1>
             <h2>Easily share text on LAN</h2>
+            <p>
+                <a href="/">🏠 GO HOME</a>
+            </p>
         </header>
 
         <p>
@@ -18,10 +21,9 @@
         </p>
 
         <p id="status">...</p>
-        <br/>
-
-        <textarea id="text" name="text" rows="400" cols="100">{{PASTE}}</textarea> 
-        <br />
+        <p>
+            <textarea id="text" name="text" rows="400" cols="100">{{PASTE}}</textarea> 
+        <p/>
 
         <button onclick="scrollToTop()">Top</button>
     </body>
@@ -30,25 +32,6 @@
 
     const textAreaEl = document.getElementById("text");
     const statusEl = document.getElementById("status");
-    const pressedKeys = [];
-
-    document.addEventListener('keydown', (event) => {
-        if (isVim === true && event.shiftKey && event.key === 'G') {
-            scrollToBottom()
-        }
-
-        if (isVim === true && event.key === 'g') {
-            pressedKeys.push(event.key);
-            console.log(pressedKeys);
-
-            setTimeout(() => {
-                if (pressedKeys.join('') === 'gg') {
-                    scrollToTop()
-                }
-                pressedKeys.length = 0; // Reset pressed keys
-            }, 200); // Adjust timeout for responsiveness
-        }
-    });
 
     function scrollToTop() {
         window.scrollTo({ top: 0, behavior: 'smooth' });

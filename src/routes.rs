@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
-use log::info;
+use log::warn;
 use rand::seq::IndexedRandom;
 use rtfw_http::http::response_status_codes::HttpStatusCode;
 use rtfw_http::http::{HttpRequest, HttpResponse, HttpResponseBuilder};
 use serde_json::json;
-use std::fs::{read_to_string, File};
+use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -76,7 +76,8 @@ pub fn get_file(request: &HttpRequest) -> Result<HttpResponse> {
     let filename = request.query.get("file");
     if filename.is_none() {
         let body = utils::load_view("send")?;
-        let files = utils::get_files_in_directory("./data")?;
+        let upload_dir = utils::get_upload_dir_path();
+        let files = utils::get_files_in_directory(&upload_dir)?;
 
         let mut dynamic_html = String::new();
         for file in files.iter() {
@@ -95,8 +96,8 @@ pub fn get_file(request: &HttpRequest) -> Result<HttpResponse> {
     }
 
     let filename = filename.unwrap();
-    let file_path = format!("data/{}", filename);
-    if !PathBuf::from(&file_path).is_file() {
+    let filepath = utils::get_upload_file_path(filename)?;
+    if !filepath.is_file() {
         let err_msg = format!("No such file: {}", filename);
         return HttpResponseBuilder::new()
             .set_status(HttpStatusCode::NotFound)
@@ -104,8 +105,8 @@ pub fn get_file(request: &HttpRequest) -> Result<HttpResponse> {
             .build();
     }
 
-    let mime_type = mime_guess::from_path(&file_path).first_or_octet_stream();
-    let bin_content = fs::read(&file_path)?;
+    let mime_type = mime_guess::from_path(&filepath).first_or_octet_stream();
+    let bin_content = fs::read(&filepath)?;
 
     HttpResponseBuilder::new()
         .set_raw_body(bin_content)
@@ -125,9 +126,30 @@ pub fn post_file(request: &HttpRequest) -> Result<HttpResponse> {
         .context("Should have prefix")?;
 
     let multipart = utils::process_multipart_form_data(boundary, &request.body)?;
+    let filepath = utils::get_upload_file_path(&multipart.filename);
+    if let Err(e) = filepath {
+        warn!("failed to upload: {:?}: {}", multipart, e);
+        return HttpResponseBuilder::new()
+            .set_status(HttpStatusCode::BadRequest)
+            .set_json_body(
+                &json!({"status": "400 Bad Request", "message": "failed to upload file"}),
+            )?
+            .build();
+    }
 
-    let file_path = format!("./data/{}", multipart.filename);
-    let mut file = File::create(file_path)?;
+    let filepath = filepath.unwrap();
+    if filepath.exists() {
+        warn!(
+            "failed to upload: {:?}: file with same name already exists",
+            multipart
+        );
+        return HttpResponseBuilder::new()
+            .set_status(HttpStatusCode::Conflict)
+            .set_json_body(&json!({"status": "409 Conflict", "message": "A file with the same name already exists"}))?
+            .build();
+    }
+
+    let mut file = File::create(filepath)?;
     file.write_all(&multipart.data);
 
     HttpResponseBuilder::new()

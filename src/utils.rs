@@ -1,11 +1,30 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use log::{info, warn};
 use std::{
+    ffi::OsString,
     fs,
     io::{BufRead, BufReader, Cursor, Read},
+    path::{Path, PathBuf},
 };
 
+const UPLOAD_DIR: &str = "data/upload/";
 const PASTE_FILE: &str = "data/shared-text.txt";
+
+pub fn get_upload_dir_path() -> PathBuf {
+    PathBuf::from(UPLOAD_DIR)
+}
+
+pub fn get_upload_file_path(filename: &str) -> Result<PathBuf> {
+    let safe_filename = sanitize_filename(filename)?;
+    Ok(get_upload_dir_path().join(safe_filename))
+}
+
+pub fn sanitize_filename(filename: &str) -> Result<OsString> {
+    match Path::new(filename).file_name() {
+        Some(filename) => Ok(filename.to_owned()),
+        None => Err(anyhow!("failed to get filename")),
+    }
+}
 
 pub fn get_paste_data() -> Result<String> {
     info!("get paste data from: {}", PASTE_FILE);
@@ -28,7 +47,7 @@ pub fn sanitize_user_input(value: &str) -> String {
     value.replace("<", "&lt;").replace(">", "&gt;")
 }
 
-pub fn get_files_in_directory(path: &str) -> Result<Vec<String>> {
+pub fn get_files_in_directory(path: &PathBuf) -> Result<Vec<String>> {
     let entries = fs::read_dir(path)?;
     let file_names: Vec<String> = entries
         .filter_map(|entry| {

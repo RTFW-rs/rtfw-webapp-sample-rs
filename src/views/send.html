@@ -8,12 +8,16 @@
         <header>
             <h1>🎁 RTFW-WebApp-Sample | Send</h1>
             <h2>Easily share files on LAN</h2>
+            <p>
+                <a href="/">🏠 GO HOME</a>
+            </p>
         </header>
 
         <form>
-          <input type="file" name="file" multiple>
-          <button type="submit">Upload</button>
+            <input type="file" name="file" multiple>
+            <button type="submit">Upload</button>
         </form>
+        <p id="status">...</p>
 
         <div id="file-list">
             <p>Files:</p>
@@ -25,18 +29,24 @@
 
     <script>
 
+    const statusEl = document.getElementById("status");
     const form = document.querySelector('form');
 
     form.addEventListener('submit', function(event) {
-      event.preventDefault();
-      const formData = new FormData(form);
-      fetch('/send', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => console.log('Success:', data))
-      .catch(error => console.error('Error:', error));
+        event.preventDefault();
+        const formData = new FormData(form);
+        fetch('/send', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                const time = getTimeLabel();
+                statusEl.innerHTML = `[${time}] ${data.message}`
+            })
+            .catch(error => {
+                statusEl.innerHTML = `[${time}] ERROR: Failed to upload data to server: ` + error.message
+            });
     });
 
     function getTimeLabel() {
