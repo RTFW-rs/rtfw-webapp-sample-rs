@@ -17,10 +17,9 @@ fn main() -> anyhow::Result<()> {
         .get("/send", routes::get_file)?
         .post("/send", routes::post_file)?
         .get("/paste", routes::get_paste)?
-        .get("/paste-data", routes::get_paste_data)?
         .post("/paste", routes::post_paste)?
-        .get("/get-mirror", routes::get_mirror)?
-        .post("/post-mirror", routes::post_mirror)?
+        .get("/mirror", routes::get_mirror)?
+        .post("/mirror", routes::post_mirror)?
         .get("/slow", routes::get_slow)?
         // 404 Catch all
         .get("/*", routes::get_404)?;

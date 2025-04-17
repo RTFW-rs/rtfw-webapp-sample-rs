@@ -5,15 +5,23 @@ use std::{
     io::{BufRead, BufReader, Cursor, Read},
 };
 
-pub fn load_view(name: &str) -> Result<String> {
-    let view_path = format!("pages/{}.html", name);
-    let content = fs::read_to_string(view_path)?;
-    Ok(content)
+const PASTE_FILE: &str = "data/shared-text.txt";
+
+pub fn get_paste_data() -> Result<String> {
+    info!("get paste data from: {}", PASTE_FILE);
+    Ok(fs::read_to_string(PASTE_FILE)?)
 }
 
-pub fn read_txt_data(filename: &str) -> Result<String> {
-    let file_path = format!("data/{}", filename);
-    Ok(fs::read_to_string(file_path)?)
+pub fn write_paste_data(data: &str) -> Result<()> {
+    info!("write to {}: {}", PASTE_FILE, data);
+    fs::write(PASTE_FILE, data)?;
+    Ok(())
+}
+
+pub fn load_view(name: &str) -> Result<String> {
+    let view_path = format!("src/views/{}.html", name);
+    let content = fs::read_to_string(view_path)?;
+    Ok(content)
 }
 
 pub fn sanitize_user_input(value: &str) -> String {

@@ -4,7 +4,7 @@ use rand::seq::IndexedRandom;
 use rtfw_http::http::response_status_codes::HttpStatusCode;
 use rtfw_http::http::{HttpRequest, HttpResponse, HttpResponseBuilder};
 use serde_json::json;
-use std::fs::File;
+use std::fs::{read_to_string, File};
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -36,8 +36,7 @@ pub fn post_paste(request: &HttpRequest) -> Result<HttpResponse> {
 
     // let body = utils::sanitize_user_input(&body);
 
-    info!("write to {}: {}", PASTE_FILE, body);
-    fs::write(PASTE_FILE, body)?;
+    utils::write_paste_data(&body)?;
 
     HttpResponseBuilder::new()
         .set_status(HttpStatusCode::OK)
@@ -47,16 +46,10 @@ pub fn post_paste(request: &HttpRequest) -> Result<HttpResponse> {
 
 pub fn get_paste(_request: &HttpRequest) -> Result<HttpResponse> {
     let body = utils::load_view("paste")?;
-    let data = fs::read_to_string(PASTE_FILE)?;
-
+    let data = utils::get_paste_data()?;
     let body = body.replace("{{PASTE}}", &data);
+
     HttpResponseBuilder::new().set_html_body(&body).build()
-}
-
-pub fn get_paste_data(_request: &HttpRequest) -> Result<HttpResponse> {
-    let data = fs::read_to_string(PASTE_FILE)?;
-
-    HttpResponseBuilder::new().set_html_body(&data).build()
 }
 
 pub fn get_mirror(request: &HttpRequest) -> Result<HttpResponse> {
@@ -137,7 +130,7 @@ pub fn post_file(request: &HttpRequest) -> Result<HttpResponse> {
 
 pub fn get_404(_request: &HttpRequest) -> Result<HttpResponse> {
     let body = utils::load_view("404")?;
-    let catchphrases: Vec<_> = utils::read_txt_data("404_phrases.txt")?
+    let catchphrases: Vec<_> = fs::read_to_string("src/assets/404_phrases.txt")?
         .lines()
         .map(String::from)
         .collect();
