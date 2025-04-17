@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>RTFW-WebApp-Sample | Send</title>
+    </head>
+    <body>
+        <header>
+            <h1>🎁 RTFW-WebApp-Sample | Send</h1>
+            <h2>Easily share files on LAN</h2>
+        </header>
+
+        <form>
+          <input type="file" name="file" multiple>
+          <button type="submit">Upload</button>
+        </form>
+
+        <div id="file-list">
+            <p>Files:</p>
+            <ul>
+                {{FILES}}
+            </ul>
+        </div>
+    </body>
+
+    <script>
+
+    const form = document.querySelector('form');
+
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+      const formData = new FormData(form);
+      fetch('/send', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => console.log('Success:', data))
+      .catch(error => console.error('Error:', error));
+    });
+
+    function getTimeLabel() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        return `${h}:${m}:${s}`;
+    }
+    </script>
+</html>
