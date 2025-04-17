@@ -13,6 +13,7 @@ fn main() -> anyhow::Result<()> {
 
     let router = Router::new()
         .get("/", routes::get_hello)?
+        .get("/favicon.ico", routes::get_favicon)?
         .get("/hello", routes::get_hello)?
         .get("/send", routes::get_file)?
         .post("/send", routes::post_file)?

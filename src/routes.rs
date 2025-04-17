@@ -23,6 +23,14 @@ pub fn get_hello(request: &HttpRequest) -> Result<HttpResponse> {
     HttpResponseBuilder::new().set_html_body(&body).build()
 }
 
+pub fn get_favicon(_request: &HttpRequest) -> Result<HttpResponse> {
+    let favicon = fs::read("src/assets/favicon.ico")?;
+    HttpResponseBuilder::new()
+        .set_raw_body(favicon)
+        .set_content_type("image/x-icon")
+        .build()
+}
+
 pub fn post_paste(request: &HttpRequest) -> Result<HttpResponse> {
     let body = request.str_body()?;
     // if body.len() > PASTE_UPLOAD_SIZE_LIMIT {
