@@ -1,17 +1,41 @@
-use anyhow::{anyhow, Context, Result};
-use log::{info, warn};
+use anyhow::{anyhow, Result};
+use log::debug;
+use regex::Regex;
 use std::{
     ffi::OsString,
     fs,
-    io::{BufRead, BufReader, Cursor, Read},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 const UPLOAD_DIR: &str = "data/upload/";
 const PASTE_FILE: &str = "data/shared-text.txt";
 
+pub fn is_safe_relative_subpath(path: &Path) -> bool {
+    !path.is_absolute() && path.components().all(|comp| comp != Component::ParentDir)
+}
+
 pub fn get_upload_dir_path() -> PathBuf {
     PathBuf::from(UPLOAD_DIR)
+}
+
+pub fn markdown_to_html(content: &str) -> Result<String> {
+    let link_regex = Regex::new(r"\[([^\]]+)\]\(([^)]+)\)")?;
+    let result = link_regex
+        .replace_all(content, r#"<a href="$2">$1</a>"#)
+        .to_string();
+
+    let bold_regex = Regex::new(r"\*\*(.*?)\*\*")?;
+    let result = bold_regex.replace_all(&result, "<b>$1</b>").to_string();
+
+    let italic_regex = Regex::new(r"\*(.*?)\*")?;
+    let result = italic_regex.replace_all(&result, "<i>$1</i>").to_string();
+
+    let code_regex = Regex::new(r"`(.*?)`")?;
+    let result = code_regex
+        .replace_all(&result, "<code>$1</code>")
+        .to_string();
+
+    Ok(result)
 }
 
 pub fn get_upload_file_path(filename: &str) -> Result<PathBuf> {
@@ -27,12 +51,12 @@ pub fn sanitize_filename(filename: &str) -> Result<OsString> {
 }
 
 pub fn get_paste_data() -> Result<String> {
-    info!("get paste data from: {}", PASTE_FILE);
+    debug!("get paste data from: {}", PASTE_FILE);
     Ok(fs::read_to_string(PASTE_FILE)?)
 }
 
 pub fn write_paste_data(data: &str) -> Result<()> {
-    info!("write to {}: {}", PASTE_FILE, data);
+    debug!("write to {}: {}", PASTE_FILE, data);
     fs::write(PASTE_FILE, data)?;
     Ok(())
 }
@@ -47,73 +71,17 @@ pub fn sanitize_user_input(value: &str) -> String {
     value.replace("<", "&lt;").replace(">", "&gt;")
 }
 
-pub fn get_files_in_directory(path: &PathBuf) -> Result<Vec<String>> {
+pub fn get_files_in_directory(path: &PathBuf) -> Result<Vec<PathBuf>> {
     let entries = fs::read_dir(path)?;
-    let file_names: Vec<String> = entries
+    let files = entries
         .filter_map(|entry| {
             let path = entry.ok()?.path();
             if path.is_file() {
-                path.file_name()?.to_str().map(|s| s.to_owned())
+                Some(path)
             } else {
                 None
             }
         })
         .collect();
-    Ok(file_names)
-}
-
-#[derive(Debug)]
-pub struct MultipartFileDescriptor {
-    pub name: String,
-    pub filename: String,
-    pub content_type: String,
-    pub data: Vec<u8>,
-}
-
-pub fn process_multipart_form_data(boundary: &str, data: &[u8]) -> Result<MultipartFileDescriptor> {
-    let cursor = Cursor::new(data);
-    let mut reader = BufReader::new(cursor);
-
-    let mut read_boundary = String::new();
-    reader.read_line(&mut read_boundary);
-
-    info!("{}", read_boundary);
-    info!("{}", boundary);
-    if !read_boundary.eq(boundary) {
-        warn!("Boundaries differ, not sure why, we'll see later");
-        // return Err(anyhow!("boundary should be same"));
-    }
-
-    let mut content_disposition = String::new();
-    reader.read_line(&mut content_disposition);
-    info!("{}", content_disposition);
-
-    let mut parts = content_disposition.split(";").map(|p| p.trim());
-    let first = parts.next().context("should be form-data")?;
-    let name = parts.next().context("should be name=")?.to_owned();
-    let filename = parts
-        .next()
-        .context("should be filename=")?
-        .split_once('=')
-        .context("should have= in filename")?
-        .1
-        .replace("\"", "");
-
-    let mut content_type = String::new();
-    reader.read_line(&mut content_type);
-    info!("{}", content_type);
-
-    let mut empty_line = String::new();
-    reader.read_line(&mut empty_line);
-
-    let mut buffer = Vec::new();
-    reader.read_to_end(&mut buffer);
-    buffer.truncate(buffer.len() - boundary.len() - 8);
-
-    Ok(MultipartFileDescriptor {
-        name,
-        filename,
-        content_type,
-        data: buffer,
-    })
+    Ok(files)
 }

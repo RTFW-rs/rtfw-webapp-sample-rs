@@ -1,38 +1,30 @@
 use anyhow::{Context, Result};
-use log::warn;
+use chrono::{DateTime, Local};
+use log::{debug, warn};
 use rand::seq::IndexedRandom;
 use rtfw_http::http::response_status_codes::HttpStatusCode;
 use rtfw_http::http::{HttpRequest, HttpResponse, HttpResponseBuilder};
 use serde_json::json;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
 use std::time::Duration;
 use std::{fs, thread};
 
 use crate::utils;
 
-const PASTE_FILE: &str = "data/shared-text.txt";
 const PASTE_UPLOAD_SIZE_LIMIT: usize = 1_000_000_000;
 
 pub fn get_hello(request: &HttpRequest) -> Result<HttpResponse> {
     let name = request.query.get("name").map_or("World", |v| v);
     let greet_msg = format!("Hello {}!", name);
+    debug!("greeting: {greet_msg}");
 
     let body = utils::load_view("index")?.replace("{{GREET_MSG}}", &greet_msg);
     HttpResponseBuilder::new().set_html_body(&body).build()
 }
 
-pub fn get_favicon(_request: &HttpRequest) -> Result<HttpResponse> {
-    let favicon = fs::read("src/assets/favicon.ico")?;
-    HttpResponseBuilder::new()
-        .set_raw_body(favicon)
-        .set_content_type("image/x-icon")
-        .build()
-}
-
 pub fn post_paste(request: &HttpRequest) -> Result<HttpResponse> {
-    let body = request.str_body()?;
+    let body = request.get_str_body()?;
     // if body.len() > PASTE_UPLOAD_SIZE_LIMIT {
     //     return HttpResponseBuilder::new()
     //         .set_status(HttpStatusCode::BadRequest)
@@ -61,33 +53,46 @@ pub fn get_paste(_request: &HttpRequest) -> Result<HttpResponse> {
 }
 
 pub fn get_mirror(request: &HttpRequest) -> Result<HttpResponse> {
+    debug!("someone is mirroring their request: {:?}", request);
     HttpResponseBuilder::new().set_json_body(request)?.build()
 }
 
 pub fn post_mirror(request: &HttpRequest) -> Result<HttpResponse> {
-    let body = request.str_body()?;
-    println!("limit=============");
-    println!("body: {body}");
-    println!("limit=============");
+    let body = request.get_str_body()?;
+    debug!("someone is mirroring their request: {:?}", request);
+    debug!("limit=============");
+    debug!("body: {body}");
+    debug!("limit=============");
     HttpResponseBuilder::new().set_json_body(request)?.build()
 }
 
 pub fn get_file(request: &HttpRequest) -> Result<HttpResponse> {
     let filename = request.query.get("file");
     if filename.is_none() {
+        debug!("no filename provided, showing index view");
         let body = utils::load_view("send")?;
         let upload_dir = utils::get_upload_dir_path();
         let files = utils::get_files_in_directory(&upload_dir)?;
 
         let mut dynamic_html = String::new();
         for file in files.iter() {
+            let metadata = fs::metadata(file)?;
+            let created_time =
+                DateTime::<Local>::from(metadata.created()?).format("%Y-%m-%d %H:%M:%S");
+
+            let filename = file
+                .file_name()
+                .context("file should have a name")?
+                .to_string_lossy();
+
             // do not list 'secret' files
-            if file.ends_with(".secret") {
+            if filename.ends_with(".secret") {
                 continue;
             };
 
-            let url = format!("/send?file={}", file);
-            let file_dom_el = format!("<li><a href=\"{url}\">{file}</a></li>");
+            let url = format!("/send?file={}", filename);
+            let file_dom_el =
+                format!("<li><a href=\"{url}\"> {filename} | {created_time}</a></li>");
             dynamic_html.push_str(&file_dom_el);
         }
 
@@ -96,6 +101,8 @@ pub fn get_file(request: &HttpRequest) -> Result<HttpResponse> {
     }
 
     let filename = filename.unwrap();
+    debug!("filename request: {filename}");
+
     let filepath = utils::get_upload_file_path(filename)?;
     if !filepath.is_file() {
         let err_msg = format!("No such file: {}", filename);
@@ -105,28 +112,27 @@ pub fn get_file(request: &HttpRequest) -> Result<HttpResponse> {
             .build();
     }
 
+    debug!("file returned: {:?}", filepath);
     let mime_type = mime_guess::from_path(&filepath).first_or_octet_stream();
     let bin_content = fs::read(&filepath)?;
 
     HttpResponseBuilder::new()
         .set_raw_body(bin_content)
-        .set_content_type(&mime_type.to_string())
+        .set_content_type(mime_type.as_ref())
         .build()
 }
 
 pub fn post_file(request: &HttpRequest) -> Result<HttpResponse> {
-    let content_type = request
-        .headers
-        .get("Content-Type")
-        .context("expects Content-Type header")?;
+    let multipart = request.get_multipart_body()?;
+    let file_part = multipart
+        .parts
+        .first()
+        .context("MultiPart body should not be empty")?;
 
-    let boundary = content_type
-        .value
-        .strip_prefix("multipart/form-data; boundary=")
-        .context("Should have prefix")?;
+    let filename = file_part.filename.clone().unwrap();
+    debug!("uploading file: {filename}");
 
-    let multipart = utils::process_multipart_form_data(boundary, &request.body)?;
-    let filepath = utils::get_upload_file_path(&multipart.filename);
+    let filepath = utils::get_upload_file_path(&filename);
     if let Err(e) = filepath {
         warn!("failed to upload: {:?}: {}", multipart, e);
         return HttpResponseBuilder::new()
@@ -149,8 +155,9 @@ pub fn post_file(request: &HttpRequest) -> Result<HttpResponse> {
             .build();
     }
 
-    let mut file = File::create(filepath)?;
-    file.write_all(&multipart.data);
+    let mut file = File::create(&filepath)?;
+    file.write_all(&file_part.data)?;
+    debug!("saved data to file: {}", filepath.display());
 
     HttpResponseBuilder::new()
         .set_status(HttpStatusCode::Created)
@@ -160,13 +167,17 @@ pub fn post_file(request: &HttpRequest) -> Result<HttpResponse> {
 
 pub fn get_404(_request: &HttpRequest) -> Result<HttpResponse> {
     let body = utils::load_view("404")?;
-    let catchphrases: Vec<_> = fs::read_to_string("src/assets/404_phrases.txt")?
+    let catchphrases: Vec<_> = fs::read_to_string("src/assets/404_phrases.md")?
         .lines()
         .map(String::from)
         .collect();
 
     let phrase = catchphrases.choose(&mut rand::rng()).unwrap();
-    let body = body.replace("{{CATCHPHRASE}}", phrase);
+    let rendered_phrase = utils::markdown_to_html(phrase)?;
+    let body = body.replace("{{CATCHPHRASE}}", &rendered_phrase);
+    debug!(
+        "someone got lost, giving them the catch all route and a catchphrase: {rendered_phrase}"
+    );
 
     HttpResponseBuilder::new()
         .set_status(HttpStatusCode::NotFound)
@@ -178,6 +189,7 @@ pub fn get_slow(request: &HttpRequest) -> Result<HttpResponse> {
     let time = request.query.get("time").map_or("2", |v| v).parse()?;
     let body = format!("Slept for {} seconds", time);
 
+    debug!("someone is slowing down the server by: {time}s");
     thread::sleep(Duration::from_secs(time));
     HttpResponseBuilder::new().set_html_body(&body).build()
 }

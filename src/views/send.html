@@ -3,25 +3,25 @@
     <head>
         <meta charset="utf-8">
         <title>RTFW-WebApp-Sample | Send</title>
+        <link rel="stylesheet" type="text/css" href="/main.css">
     </head>
-    <body>
+    <body style="text-align: center;">
         <header>
-            <h1>🎁 RTFW-WebApp-Sample | Send</h1>
+            <h1>RTFW-WebApp-Sample | Send </h1>
             <h2>Easily share files on LAN</h2>
-            <p>
-                <a href="/">🏠 GO HOME</a>
-            </p>
+            <a id="link-go-home" href="/">/home </a>
         </header>
 
-        <form>
-            <input type="file" name="file" multiple>
-            <button type="submit">Upload</button>
+        <form id="file-upload-form">
+            <input type="file" name="file-upload" id="file-upload">
+            <!-- <label for="file-upload" class="file-upload-btn"> Choose File</label> -->
+            <button type="submit"> Upload</button>
         </form>
         <p id="status">...</p>
 
-        <div id="file-list">
-            <p>Files:</p>
-            <ul>
+        <div>
+            <p>Uploaded files:</p>
+            <ul id="file-list">
                 {{FILES}}
             </ul>
         </div>
@@ -42,7 +42,11 @@
             .then(response => response.json())
             .then(data => {
                 const time = getTimeLabel();
-                statusEl.innerHTML = `[${time}] ${data.message}`
+                statusEl.innerHTML = `[${time}] ${data.message}`;
+                if (data.status.startsWith('2') === false) {
+                } else {
+                    window.location.reload();
+                }
             })
             .catch(error => {
                 statusEl.innerHTML = `[${time}] ERROR: Failed to upload data to server: ` + error.message

@@ -18,3 +18,4 @@ target/
 
 # Ignore data directory
 data/
+src/assets/fonts/
