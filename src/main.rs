@@ -1,15 +1,18 @@
 use log::LevelFilter;
 use rtfw_http::{file_server::FileServer, router::Router, web_server::WebServer};
 
+use config::Config;
+
+mod config;
 mod routes;
 mod utils;
-
-const HOSTNAME: &str = "127.0.0.1:7878";
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::new()
         .filter_level(LevelFilter::Debug)
         .init();
+
+    let config = Config::load_from_file()?;
 
     let file_server = FileServer::new()
         .map_file("/favicon.ico", "src/assets/favicon.ico")?
@@ -17,11 +20,12 @@ fn main() -> anyhow::Result<()> {
         .map_dir("/static", "src/assets/")?;
 
     let router = Router::new()
-        .get("/", routes::get_hello)?
-        .get("/hello", routes::get_hello)?
+        .get("/", routes::get_index)?
+        .get("/home", routes::get_index)?
         .get("/send", routes::get_file)?
         .post("/send", routes::post_file)?
         .get("/paste", routes::get_paste)?
+        .delete("/files", routes::delete_file)?
         .post("/paste", routes::post_paste)?
         .get("/mirror", routes::get_mirror)?
         .post("/mirror", routes::post_mirror)?
@@ -30,6 +34,6 @@ fn main() -> anyhow::Result<()> {
         .get("/*", routes::get_404)?
         .set_file_server(file_server);
 
-    let server = WebServer::new(HOSTNAME, router)?;
+    let server = WebServer::new(&config.hostname, router)?;
     server.run()
 }

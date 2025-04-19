@@ -15,7 +15,7 @@
         <p>
             <!-- <button onclick="copyToClipboard()" disabled>Copy</button> -->
             <button onclick="savePaste()"> Save</button>
-            <button onclick="scrollToBottom()"> Bottom </button>
+            <!-- <button onclick="scrollToBottom()"> Bottom </button> -->
             <button onclick="clearPaste()">Clear </button>
         </p>
 
@@ -24,7 +24,7 @@
             <textarea id="text" name="text" rows="30" cols="100">{{PASTE}}</textarea> 
         <p/>
 
-        <button onclick="scrollToTop()"> Top </button>
+        <!-- <button onclick="scrollToTop()"> Top </button> -->
     </body>
 
     <script>
@@ -43,7 +43,7 @@
     function clearPaste() {
         const time = getTimeLabel();
         textAreaEl.value = "";
-        statusEl.innerHTML = `[${time}] Data has been clared`
+        statusEl.innerHTML = `[${time}] Data has been cleared (local only)`
     }
 
     function copyToClipboard() {
