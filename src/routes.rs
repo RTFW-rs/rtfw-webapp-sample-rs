@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Datelike, Duration, Local};
 use log::{debug, warn};
 use rand::seq::IndexedRandom;
 use rtfw_http::http::response_status_codes::HttpStatusCode;
@@ -8,7 +8,6 @@ use serde_json::json;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use std::time::Duration;
 use std::{fs, thread};
 
 use crate::config::Config;
@@ -91,11 +90,34 @@ pub fn post_mirror(request: &HttpRequest) -> Result<HttpResponse> {
     HttpResponseBuilder::new().set_json_body(request)?.build()
 }
 
+fn get_displayed_created_time(created_time: DateTime<Local>) -> String {
+    let now = Local::now();
+    let today = now.date_naive();
+    let created_date = created_time.date_naive();
+    let yesterday = today - Duration::days(1);
+    let one_week_ago = today - Duration::weeks(1);
+
+    if created_date == today {
+        created_time.format("Today, %H:%M").to_string()
+    } else if created_date == yesterday {
+        created_time.format("Yesterday, %H:%M").to_string()
+    } else if created_date > one_week_ago {
+        let n_days_ago = (now - created_time).num_days();
+        let format = format!("{n_days_ago} Days ago, %H:%M");
+        created_time.format(&format).to_string()
+    } else if now.year() == created_time.year() {
+        created_time.format("%b %d, %H:%M").to_string()
+    } else {
+        created_time.format("%Y-%m-%d %H:%M").to_string()
+    }
+}
+
 fn get_files_html(files: &[PathBuf]) -> Result<String> {
     let mut dynamic_html = String::new();
     for file in files.iter() {
         let metadata = fs::metadata(file)?;
-        let created_time = DateTime::<Local>::from(metadata.created()?).format("%Y-%m-%d %H:%M:%S");
+        let created_time = DateTime::<Local>::from(metadata.created()?);
+        let created_time = get_displayed_created_time(created_time);
 
         let filename = file
             .file_name()
@@ -107,7 +129,7 @@ fn get_files_html(files: &[PathBuf]) -> Result<String> {
         let filename_display = format!("<span class=\"file-name\"> {filename}</span>");
         let date = format!("<span class=\"file-upload-date\"> {created_time}</span>");
         let view_btn = format!(
-            "<button class=\"view-file\" data-url=\"{file_url}\" title=\"View\"></button>"
+            "<button class=\"view-file\" data-url=\"{file_url}\" title=\"Download\"></button>"
         );
         let delete_btn =
             format!("<button class=\"delete-file\" data-filename=\"{filename}\" title=\"Delete\"></button>");
@@ -127,8 +149,16 @@ pub fn get_file(request: &HttpRequest) -> Result<HttpResponse> {
         let upload_dir = utils::get_upload_dir_path();
         let files = utils::get_files_in_directory(&upload_dir)?;
 
+        let config = Config::load_from_file()?;
+        let uploaded_files_text = match config.send.file_limit {
+            Some(limit) => format!("Uploaded files: {} / {limit}", files.len()),
+            None => format!("Uploaded files: {}", files.len()),
+        };
+
         let dynamic_html = get_files_html(&files)?;
-        let body = body.replace("{{FILES}}", &dynamic_html);
+        let body = body
+            .replace("{{UPLOADED_FILES_TEXT}}", &uploaded_files_text)
+            .replace("{{FILES}}", &dynamic_html);
         return HttpResponseBuilder::new().set_html_body(&body).build();
     }
 
@@ -250,6 +280,6 @@ pub fn get_slow(request: &HttpRequest) -> Result<HttpResponse> {
     let body = format!("Slept for {} seconds", time);
 
     debug!("someone is slowing down the server by: {time}s");
-    thread::sleep(Duration::from_secs(time));
+    thread::sleep(std::time::Duration::from_secs(time));
     HttpResponseBuilder::new().set_html_body(&body).build()
 }

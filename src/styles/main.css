@@ -9,13 +9,13 @@
 }
 
 * {
-    font-family: "0xProto Nerd Font"
+    font-family: "0xProto Nerd Font";
 }
 
 body {
+    font-size: 18px;
     background-color: var(--background-color);
     color: var(--text-color);
-    margin: 0 50px;
 }
 
 @font-face {
@@ -69,6 +69,10 @@ span.wheel:hover {
     100% {
         transform: rotate(360deg);
     }
+}
+
+main {
+    margin: 0 50px;
 }
 
 #greeting {
@@ -145,17 +149,50 @@ ul {
     list-style-type: none;
 }
 
+@media screen and (max-width: 1000px) {
+    body {
+        font-size: 30px;
+    }
+
+    ul#file-list>li {
+        min-width: 700px !important;
+    }
+
+    ul#file-list>li>span.file-upload-date {
+        display: none;
+    }
+
+    textarea {
+        max-width: 800px;
+    }
+
+    img.image-404 {
+        max-width: 500px;
+    }
+
+    input[type="file"]::file-selector-button {
+        font-size: 30px;
+    }
+}
+
+@media screen and (min-width: 1000px) {
+    input[type="file"]::file-selector-button {
+        font-size: 18px;
+    }
+
+}
+
 ul#file-list {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
     flex-wrap: wrap;
+    align-items: center;
+    padding-left: 0;
 }
 
 ul#file-list>li {
-    font-size: 1.2em;
-    width: 1200px;
+    min-width: 700px;
+    max-width: 1200px;
     margin: 0.5em 0;
     display: flex;
     flex-direction: row;
