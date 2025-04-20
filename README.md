@@ -6,3 +6,9 @@ It's got four main routes:
 - `/send` for file upload/download
 - `/mirror` to easily inspect how the server parses the HTTP request
 - `/sleep` to test the multithreading aspect of the server
+
+##  Screenshots
+
+![Home page](./docs/index.png)
+![Paste page](./docs/paste.png)
+![Send page](./docs/send.png)
