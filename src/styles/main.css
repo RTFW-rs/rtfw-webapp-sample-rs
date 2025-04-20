@@ -167,7 +167,7 @@ ul {
     }
 
     img.image-404 {
-        max-width: 500px;
+        max-width: 800px;
     }
 
     input[type="file"]::file-selector-button {

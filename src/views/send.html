@@ -25,72 +25,7 @@
                 {{FILES}}
             </ul>
         </div>
+
+        <script src="/scripts/send.js"></script>
     </body>
-
-    <script>
-
-    const statusEl = document.getElementById("status");
-    const form = document.querySelector('form');
-
-    const viewButtons = document.querySelectorAll('button.view-file');
-    viewButtons.forEach(button => {
-        button.addEventListener('click', function(event) {
-            const fileUrl = button.dataset.url;
-            window.location.href=fileUrl;
-        });
-    });
-
-    const deleteButtons = document.querySelectorAll('button.delete-file');
-    deleteButtons.forEach(button => {
-        button.addEventListener('click', function(event) {
-            const filename = button.dataset.filename;
-            if (confirm(`Delete ${filename} forever?`)) {
-                fetch('/files/', {
-                    method: 'DELETE',
-                    body: filename, 
-                }).then(response => response.json())
-                    .then(data => {
-                        const time = getTimeLabel();
-                        statusEl.innerHTML = `[${time}] ${data.message}`;
-                        if (data.status.startsWith('2') === false) {
-                        } else {
-                            window.location.reload();
-                        }
-                    })
-                    .catch(error => {
-                        statusEl.innerHTML = `[${time}] ERROR: Failed to delete file: ` + error.message
-                    });
-            }
-        });
-    });
-
-    form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        const formData = new FormData(form);
-        fetch('/send', {
-            method: 'POST',
-            body: formData
-        })
-            .then(response => response.json())
-            .then(data => {
-                const time = getTimeLabel();
-                statusEl.innerHTML = `[${time}] ${data.message}`;
-                if (data.status.startsWith('2') === false) {
-                } else {
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                statusEl.innerHTML = `[${time}] ERROR: Failed to upload data to server: ` + error.message
-            });
-    });
-
-    function getTimeLabel() {
-        const now = new Date();
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        const s = String(now.getSeconds()).padStart(2, '0');
-        return `${h}:${m}:${s}`;
-    }
-    </script>
 </html>

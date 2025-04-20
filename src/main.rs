@@ -17,7 +17,8 @@ fn main() -> anyhow::Result<()> {
     let file_server = FileServer::new()
         .map_file("/favicon.ico", "src/assets/favicon.ico")?
         .map_file("/main.css", "src/styles/main.css")?
-        .map_dir("/static", "src/assets/")?;
+        .map_dir("/static", "src/assets/")?
+        .map_dir("/scripts", "src/scripts/")?;
 
     let router = Router::new()
         .get("/", routes::get_index)?
